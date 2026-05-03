@@ -17,7 +17,7 @@ const getProducts = async (req, res) => {
 // @access  Private/Admin
 const createProduct = async (req, res) => {
   try {
-    const { name, description, price, stock, category, image } = req.body;
+    const { name, description, price, stock, category, image, discount, isNew } = req.body;
 
     const product = new Product({
       name,
@@ -26,6 +26,8 @@ const createProduct = async (req, res) => {
       stock,
       category,
       image: image || 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=800&auto=format&fit=crop',
+      discount: discount !== undefined ? Number(discount) : 0,
+      isNew: isNew !== undefined ? Boolean(isNew) : false,
     });
 
     const createdProduct = await product.save();
@@ -40,7 +42,7 @@ const createProduct = async (req, res) => {
 // @access  Private/Admin
 const updateProduct = async (req, res) => {
   try {
-    const { name, description, price, stock, category, image } = req.body;
+    const { name, description, price, stock, category, image, discount, isNew } = req.body;
 
     const product = await Product.findById(req.params.id);
 
@@ -51,6 +53,8 @@ const updateProduct = async (req, res) => {
       product.stock = stock !== undefined ? stock : product.stock;
       product.category = category || product.category;
       if (image) product.image = image;
+      if (discount !== undefined) product.discount = Number(discount);
+      if (isNew !== undefined) product.isNew = Boolean(isNew);
 
       const updatedProduct = await product.save();
       res.json(updatedProduct);
@@ -80,9 +84,27 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+// @desc    Add a review to a product
+// @route   POST /api/products/:id/reviews
+// @access  Public
+const addReview = async (req, res) => {
+  try {
+    const { userName, rating, comment } = req.body;
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    product.reviews.push({ userName, rating: Number(rating), comment: comment || '' });
+    await product.save();
+    res.status(201).json({ message: 'Review added', reviews: product.reviews });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getProducts,
   createProduct,
   updateProduct,
   deleteProduct,
+  addReview,
 };
