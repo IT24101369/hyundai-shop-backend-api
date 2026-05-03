@@ -13,17 +13,19 @@ const createOrder = async (req, res) => {
       items, subtotal, deliveryFee, grandTotal, customerLat, customerLng, status
     } = req.body;
 
-    // Check and update stock for each item
+    // Check and update stock for each item (Graceful handling if product is deleted)
     for (const item of items) {
-      const product = await Product.findById(item.productId);
-      if (!product) {
-        return res.status(404).json({ message: `Product not found: ${item.name}` });
+      if (item.productId && mongoose.Types.ObjectId.isValid(item.productId)) {
+        const product = await Product.findById(item.productId);
+        if (product) {
+          if (product.stock >= item.quantity) {
+            product.stock -= item.quantity;
+            await product.save();
+          } else {
+            return res.status(400).json({ message: `Insufficient stock for ${item.name}. Available: ${product.stock}` });
+          }
+        }
       }
-      if (product.stock < item.quantity) {
-        return res.status(400).json({ message: `Insufficient stock for ${item.name}. Available: ${product.stock}` });
-      }
-      product.stock -= item.quantity;
-      await product.save();
     }
 
     const paymentStatus = paymentMethod === 'Card Payment' ? 'Paid' : 'Non Paid';
